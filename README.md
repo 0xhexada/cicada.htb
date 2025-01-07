@@ -286,9 +286,9 @@ successful login to michael.wrightson account [ + ]
 
 Давайте попробуем в неё войти, и посмотреть к каким шарам, у нас есть доступ
 ```vbnet
-Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ poetry run python netexec.py smb cicada.htb -u michael.wrightson -p 'Cicada$M6Corpb*@Lp#nZp!8' --shares                             main 
+Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ poetry run python netexec.py smb cicada.htb -u michael.wrightson -p 'Cicada$M6Corpb*****' --shares
 SMB         10.10.11.35     445    CICADA-DC        [*] Windows Server 2022 Build 20348 x64 (name:CICADA-DC) (domain:cicada.htb) (signing:True) (SMBv1:False)
-SMB         10.10.11.35     445    CICADA-DC        [+] cicada.htb\michael.wrightson:Cicada$M6Corpb*@Lp#nZp!8 
+SMB         10.10.11.35     445    CICADA-DC        [+] cicada.htb\michael.wrightson:Cicada$M6Corpb*****
 SMB         10.10.11.35     445    CICADA-DC        [*] Enumerated shares
 SMB         10.10.11.35     445    CICADA-DC        Share           Permissions     Remark
 SMB         10.10.11.35     445    CICADA-DC        -----           -----------     ------
